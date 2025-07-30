@@ -1,5 +1,6 @@
 import { task } from "hardhat/config";
 import type { TaskArguments } from "hardhat/types";
+import { FhevmType } from "@fhevm/hardhat-plugin";
 
 // Task: Deploy complete SecretPlatform system
 task("deploy-secret-platform", "Deploy the complete SecretPlatform system")
@@ -105,21 +106,75 @@ task("wrap-usdt", "Wrap USDT tokens to cUSDT")
     console.log("Transaction:", wrapTx.hash);
   });
 
+/**
+ * Check confidential token balance
+ * Example: npx hardhat --network localhost task:check-balance --confidential-token 0x123... --user 0
+ */
+task("check-balance", "Check encrypted balance of a confidential token")
+  .addParam("cftoken", "The address of the confidential token")
+  .addOptionalParam("user", "User index (default: 0)", "0")
+  .setAction(async function (taskArguments: TaskArguments, hre) {
+    const { ethers, fhevm } = hre;
+
+    await fhevm.initializeCLIApi();
+
+    const confidentialTokenAddress = taskArguments.cftoken;
+    const userIndex = parseInt(taskArguments.user);
+
+    if (!confidentialTokenAddress) {
+      throw new Error("--confidential-token parameter is required");
+    }
+
+    const signers = await ethers.getSigners();
+    const user = signers[userIndex];
+
+    console.log(`Checking balance for user: ${user.address}`);
+    console.log(`Confidential token: ${confidentialTokenAddress}`);
+
+    try {
+      const confidentialToken = await ethers.getContractAt("cUSDT", confidentialTokenAddress);
+
+      // Get encrypted balance
+      const encryptedBalance = await confidentialToken.confidentialBalanceOf(user.address);
+      console.log(`Encrypted balance handle: ${encryptedBalance}`);
+
+      // Decrypt balance (user needs permission)
+      try {
+        const clearBalance = await fhevm.userDecryptEuint(
+          FhevmType.euint64,
+          encryptedBalance,
+          confidentialTokenAddress,
+          user
+        );
+        console.log(`Decrypted balance: ${clearBalance}`);
+      } catch (decryptError) {
+        console.log(`Could not decrypt balance (user may not have permission): ${decryptError}`);
+      }
+
+    } catch (error) {
+      console.error(`Error checking balance: ${error}`);
+      throw error;
+    }
+  });
+
 // Task: Set operator for cUSDT transfers
 task("approve-platform", "Approve SecretPlatform as operator for cUSDT")
   .addParam("platform", "Address of the SecretPlatform contract")
+  .addParam("cusdt", "Address of the cUSDT contract")
   .addOptionalParam("duration", "Duration in seconds (default: 1 year)", "31536000")
   .setAction(async function (taskArguments: TaskArguments, { ethers }) {
     const [signer] = await ethers.getSigners();
-    const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
+    const cUSDT = await ethers.getContractAt("cUSDT", taskArguments.cusdt);
 
     const until = Math.floor(Date.now() / 1000) + parseInt(taskArguments.duration);
 
     console.log("🔐 Approving platform as operator...");
     console.log("Platform:", taskArguments.platform);
+    console.log("cUSDT:", taskArguments.cusdt);
     console.log("Valid until:", new Date(until * 1000).toISOString());
 
-    const approveTx = await platform.approveTokenOperator(until);
+    // User directly calls setOperator on cUSDT contract
+    const approveTx = await cUSDT.setOperator(taskArguments.platform, until);
     await approveTx.wait();
 
     console.log("✅ Platform approved as operator");
@@ -133,11 +188,14 @@ task("deposit", "Deposit cUSDT to SecretPlatform")
   .setAction(async function (taskArguments: TaskArguments, hre) {
     const { ethers, deployments, fhevm } = hre;
     const [signer] = await ethers.getSigners();
+    console.log("signer:", signer.address);
+
     const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
-    const amount = BigInt(taskArguments.amount);
+    // const amount = BigInt(taskArguments.amount);
+    const amount = parseInt(taskArguments.amount) * 1000000
     await fhevm.initializeCLIApi();
     console.log("💰 Depositing to SecretPlatform...");
-    console.log("Amount:", taskArguments.amount);
+    console.log("Amount:", amount);
 
     // Create encrypted input using hre.fhevm
 
@@ -257,6 +315,51 @@ task("balance", "Get encrypted balance on SecretPlatform")
 
     console.log("🔐 Encrypted balance handle:", encryptedBalance);
     console.log("💡 Use user decryption to see the actual balance");
+  });
+
+// Task: Diagnose contract state
+task("diagnose", "Diagnose contract state for debugging")
+  .addParam("platform", "Address of the SecretPlatform contract")
+  .addParam("cusdt", "Address of the cUSDT contract")
+  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+    const [signer] = await ethers.getSigners();
+    const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
+    const cUSDT = await ethers.getContractAt("cUSDT", taskArguments.cusdt);
+    const underlying = await ethers.getContractAt("IERC20", await cUSDT.underlying());
+
+    console.log("🔍 Diagnosing contract state...");
+    console.log("User:", signer.address);
+    console.log("Platform:", taskArguments.platform);
+    console.log("cUSDT:", taskArguments.cusdt);
+
+    try {
+      // Check underlying USDT balance
+      const underlyingBalance = await underlying.balanceOf(signer.address);
+      console.log("📊 Underlying USDT balance:", ethers.formatUnits(underlyingBalance, 6));
+
+      // Check if platform is operator
+      const isOperator = await cUSDT.isOperator(signer.address, taskArguments.platform);
+      console.log("🔐 Is platform operator?", isOperator);
+
+      // Check cUSDT balance (this might fail if balance is encrypted)
+      try {
+        const cUSDTBalance = await cUSDT.confidentialBalanceOf(signer.address);
+        console.log("💰 cUSDT balance handle:", cUSDTBalance);
+      } catch (e) {
+        console.log("⚠️ Cannot read cUSDT balance (encrypted)");
+      }
+
+      // Check platform balance
+      try {
+        const platformBalance = await platform.getBalance(signer.address);
+        console.log("🏛️ Platform balance handle:", platformBalance);
+      } catch (e) {
+        console.log("⚠️ Cannot read platform balance:", e.message);
+      }
+
+    } catch (error) {
+      console.error("❌ Error during diagnosis:", error.message);
+    }
   });
 
 // Task: Complete workflow demo

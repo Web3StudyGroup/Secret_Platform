@@ -4,6 +4,7 @@ pragma solidity ^0.8.27;
 import {FHE, euint64, eaddress, externalEuint64, externalEaddress} from "@fhevm/solidity/lib/FHE.sol";
 import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {cUSDT} from "./cUSDT.sol";
+import "hardhat/console.sol";
 
 /// @title SecretPlatform - Confidential Transfer Platform
 /// @notice Platform for confidential deposits, withdrawals and transfers using encrypted cUSDT
@@ -73,11 +74,13 @@ contract SecretPlatform is SepoliaConfig {
         // This should be done by the user beforehand via cUSDTToken.setOperator(address(this), expiry)
 
         // Transfer cUSDT from user to platform using confidentialTransferFrom
+        console.log("deposit 1");
+        FHE.allowTransient(amount, address(cUSDTToken));
         euint64 transferred = cUSDTToken.confidentialTransferFrom(msg.sender, address(this), amount);
-
+        console.log("deposit 2");
         // Update user balance on platform using the actual transferred amount
         userBalances[msg.sender] = FHE.add(userBalances[msg.sender], transferred);
-
+        console.log("deposit 3");
         // Set ACL permissions
         FHE.allowThis(userBalances[msg.sender]);
         FHE.allow(userBalances[msg.sender], msg.sender);
