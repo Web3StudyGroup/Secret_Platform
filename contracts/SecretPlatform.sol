@@ -112,6 +112,31 @@ contract SecretPlatform is SepoliaConfig {
         emit Withdrawal(msg.sender);
     }
 
+    function withdrawAll() external {
+        euint64 amount = userBalances[msg.sender];
+
+        // Check user has access to their balance
+        require(FHE.isSenderAllowed(amount), "Unauthorized access");
+
+        // Check if user has sufficient balance (using FHE comparison)
+        // euint64 currentBalance = userBalances[msg.sender];
+
+        // Update user balance (subtract amount)
+        // userBalances[msg.sender] = FHE.sub(currentBalance, amount);
+
+        // Set ACL permissions
+        userBalances[msg.sender] = FHE.asEuint64(0);
+        FHE.allowThis(userBalances[msg.sender]);
+        FHE.allow(userBalances[msg.sender], msg.sender);
+
+        FHE.allowTransient(amount, address(cUSDTToken));
+        // Transfer cUSDT back to user using confidentialTransfer
+        cUSDTToken.confidentialTransfer(msg.sender, amount);
+        // The transferred amount is returned for verification
+
+        emit Withdrawal(msg.sender);
+    }
+
     /// @notice Create encrypted transfer to another address
     /// @param encryptedRecipient The encrypted recipient address
     /// @param encryptedAmount The encrypted amount to transfer

@@ -278,6 +278,38 @@ task("claim", "Claim a transfer sent to you")
     console.log("Transaction:", claimTx.hash);
   });
 
+// Task: Claim transfer
+task("withdrawall", "Claim a transfer sent to you")
+  .addParam("platform", "Address of the SecretPlatform contract")
+  .addParam("user", "Address that sent the transfer")
+  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+    const signers = await ethers.getSigners();
+    const signer = signers[parseInt(taskArguments.user)]
+    const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
+
+    console.log("💸 Claiming transfer...");
+    console.log("From:", taskArguments.from);
+    console.log("To:", signer.address);
+
+    // Check if transfer record exists
+    // const transferRecord = await platform.getTransferRecord(signer.address);
+    // console.log("transferRecord:", transferRecord);
+    const tx = await platform.connect(signer).withdrawAll()
+    await tx.wait()
+
+
+    // if (!hasTransfer) {
+    //   console.log("❌ No transfer record found from", taskArguments.from);
+    //   return;
+    // }
+
+    const claimTx = await platform.connect(signer).encryptClaim();
+    await claimTx.wait();
+
+    console.log("✅ Transfer claimed successfully");
+    console.log("Transaction:", claimTx.hash);
+  });
+
 // Task: Withdraw from platform
 task("withdraw", "Withdraw cUSDT from SecretPlatform")
   .addParam("platform", "Address of the SecretPlatform contract")
