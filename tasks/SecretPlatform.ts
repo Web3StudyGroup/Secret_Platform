@@ -2,59 +2,6 @@ import { task } from "hardhat/config";
 import type { TaskArguments } from "hardhat/types";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 
-// Task: Deploy complete SecretPlatform system
-task("deploy-secret-platform", "Deploy the complete SecretPlatform system")
-  .addOptionalParam("usdt", "Address of the USDT token to wrap", "")
-  .setAction(async function (taskArguments: TaskArguments, { ethers, deployments }) {
-    const { deployer } = await ethers.getNamedSigners();
-
-    console.log("🚀 Deploying SecretPlatform system...");
-    console.log("Deployer:", deployer.address);
-
-    let usdtAddress = taskArguments.usdt;
-
-    // Deploy MockERC20 if no USDT address provided
-    if (!usdtAddress) {
-      console.log("📝 Deploying MockUSDT...");
-      const MockUSDT = await ethers.getContractFactory("MockERC20");
-      const mockUSDT = await MockUSDT.deploy("Mock USDT", "USDT", 6);
-      await mockUSDT.waitForDeployment();
-      usdtAddress = await mockUSDT.getAddress();
-      console.log("✅ MockUSDT deployed to:", usdtAddress);
-
-      // Mint some tokens to deployer for testing
-      await mockUSDT.mint(deployer.address, ethers.parseUnits("10000", 6));
-      console.log("💰 Minted 10,000 USDT to deployer");
-    }
-
-    // Deploy cUSDT
-    console.log("🔐 Deploying cUSDT...");
-    const cUSDTFactory = await ethers.getContractFactory("cUSDT");
-    const cUSDT = await cUSDTFactory.deploy(usdtAddress);
-    await cUSDT.waitForDeployment();
-    const cUSDTAddress = await cUSDT.getAddress();
-    console.log("✅ cUSDT deployed to:", cUSDTAddress);
-
-    // Deploy SecretPlatform
-    console.log("🏛️ Deploying SecretPlatform...");
-    const SecretPlatformFactory = await ethers.getContractFactory("SecretPlatform");
-    const secretPlatform = await SecretPlatformFactory.deploy(cUSDTAddress);
-    await secretPlatform.waitForDeployment();
-    const platformAddress = await secretPlatform.getAddress();
-    console.log("✅ SecretPlatform deployed to:", platformAddress);
-
-    console.log("\n🎉 Deployment Summary:");
-    console.log("USDT Token:", usdtAddress);
-    console.log("cUSDT Token:", cUSDTAddress);
-    console.log("SecretPlatform:", platformAddress);
-
-    return {
-      usdt: usdtAddress,
-      cUSDT: cUSDTAddress,
-      platform: platformAddress
-    };
-  });
-
 task("claim-usdt", "Claim usdt")
   .addParam("usdt", "Address of usdt")
   .addParam("amount", "Amount")
@@ -308,36 +255,6 @@ task("withdrawall", "Claim a transfer sent to you")
 
     console.log("✅ Transfer claimed successfully");
     console.log("Transaction:", claimTx.hash);
-  });
-
-// Task: Withdraw from platform
-task("withdraw", "Withdraw cUSDT from SecretPlatform")
-  .addParam("platform", "Address of the SecretPlatform contract")
-  .addParam("amount", "Amount to withdraw")
-  .setAction(async function (taskArguments: TaskArguments, hre) {
-    const { ethers, deployments, fhevm } = hre;
-    await fhevm.initializeCLIApi();
-    const [signer] = await ethers.getSigners();
-    const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
-    const amount = BigInt(taskArguments.amount);
-
-    console.log("💳 Withdrawing from SecretPlatform...");
-    console.log("Amount:", taskArguments.amount);
-
-    // Create encrypted input using hre.fhevm
-
-    const input = fhevm.createEncryptedInput(taskArguments.platform, signer.address);
-    input.add64(amount);
-    const encryptedInput = await input.encrypt();
-
-    const withdrawTx = await platform.withdraw(
-      encryptedInput.handles[0],
-      encryptedInput.inputProof
-    );
-    await withdrawTx.wait();
-
-    console.log("✅ Withdrawal successful");
-    console.log("Transaction:", withdrawTx.hash);
   });
 
 // Task: Get platform balance (encrypted)
