@@ -218,8 +218,12 @@ task("secret-transfer", "Create encrypted transfer to another address")
   .addParam("platform", "Address of the SecretPlatform contract")
   .addParam("to", "Recipient address")
   .addParam("amount", "Amount to transfer")
-  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
-    const [signer] = await ethers.getSigners();
+  .setAction(async function (taskArguments: TaskArguments, hre) {
+    const { ethers, deployments, fhevm } = hre;
+    await fhevm.initializeCLIApi();
+    const signers = await ethers.getSigners();
+    const signer = signers[0]
+    const to = signers[parseInt(taskArguments.to)]
     const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
     const amount = BigInt(taskArguments.amount);
 
@@ -228,13 +232,13 @@ task("secret-transfer", "Create encrypted transfer to another address")
     console.log("Amount:", taskArguments.amount);
 
     // Create encrypted input using hre.fhevm
-    const { fhevm } = hre;
+
     const input = fhevm.createEncryptedInput(taskArguments.platform, signer.address);
     input.add64(amount);
     const encryptedInput = await input.encrypt();
 
     const transferTx = await platform.encryptedTransferTo(
-      taskArguments.to,
+      to,
       encryptedInput.handles[0],
       encryptedInput.inputProof
     );
