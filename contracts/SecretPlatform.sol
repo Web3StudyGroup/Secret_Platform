@@ -18,10 +18,10 @@ contract SecretPlatform is SepoliaConfig {
 
     // Transfer records: recipient -> sender -> encrypted amount
     // This allows recipients to claim transfers sent to them
-    mapping(address => mapping(address => euint64)) private transferRecords;
+    mapping(address => euint64) private transferRecords;
 
     // Track if a transfer record exists
-    mapping(address => mapping(address => bool)) private transferExists;
+    mapping(address => bool) private transferExists;
 
     // Events
     event Deposit(address indexed user);
@@ -50,18 +50,16 @@ contract SecretPlatform is SepoliaConfig {
 
     /// @notice Get encrypted transfer amount from sender to recipient
     /// @param recipient The recipient address
-    /// @param sender The sender address
     /// @return The encrypted transfer amount
-    function getTransferRecord(address recipient, address sender) external view returns (euint64) {
-        return transferRecords[recipient][sender];
+    function getTransferRecord(address recipient) external view returns (euint64) {
+        return transferRecords[recipient];
     }
 
     /// @notice Check if a transfer record exists
     /// @param recipient The recipient address
-    /// @param sender The sender address
     /// @return True if transfer record exists
-    function hasTransferRecord(address recipient, address sender) external view returns (bool) {
-        return transferExists[recipient][sender];
+    function hasTransferRecord(address recipient) external view returns (bool) {
+        return transferExists[recipient];
     }
 
     /// @notice Deposit cUSDT to the platform
@@ -164,39 +162,38 @@ contract SecretPlatform is SepoliaConfig {
         userBalances[msg.sender] = FHE.sub(userBalances[msg.sender], amount);
 
         // Store transfer record for recipient
-        transferRecords[recipient][msg.sender] = amount;
-        transferExists[recipient][msg.sender] = true;
+        transferRecords[recipient] = amount;
+        transferExists[recipient] = true;
 
         // Set ACL permissions
         FHE.allowThis(userBalances[msg.sender]);
         FHE.allow(userBalances[msg.sender], msg.sender);
-        FHE.allowThis(transferRecords[recipient][msg.sender]);
-        FHE.allow(transferRecords[recipient][msg.sender], recipient);
-        FHE.allow(transferRecords[recipient][msg.sender], msg.sender);
+        FHE.allowThis(transferRecords[recipient]);
+        FHE.allow(transferRecords[recipient], recipient);
+        FHE.allow(transferRecords[recipient], msg.sender);
 
         emit EncryptedTransfer(msg.sender, recipient);
     }
 
     /// @notice Claim a transfer sent to you
-    /// @param sender The address that sent the transfer
-    function encryptClaim(address sender) external {
-        require(transferExists[msg.sender][sender], "No transfer record found");
+    function encryptClaim() external {
+        require(transferExists[msg.sender], "No transfer record found");
 
         // Get the transfer amount
-        euint64 transferAmount = transferRecords[msg.sender][sender];
+        euint64 transferAmount = transferRecords[msg.sender];
 
         // Add to recipient's balance
         userBalances[msg.sender] = FHE.add(userBalances[msg.sender], transferAmount);
 
         // Clear the transfer record
-        transferRecords[msg.sender][sender] = FHE.asEuint64(0);
-        delete transferExists[msg.sender][sender];
+        transferRecords[msg.sender] = FHE.asEuint64(0);
+        transferExists[msg.sender] = true;
 
         // Set ACL permissions
         FHE.allowThis(userBalances[msg.sender]);
         FHE.allow(userBalances[msg.sender], msg.sender);
 
-        emit Claim(msg.sender, sender);
+        // emit Claim(msg.sender);
     }
 
     /// @notice Emergency function to check if user has sufficient balance

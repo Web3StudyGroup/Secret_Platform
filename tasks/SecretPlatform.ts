@@ -252,9 +252,10 @@ task("secret-transfer", "Create encrypted transfer to another address")
 // Task: Claim transfer
 task("claim", "Claim a transfer sent to you")
   .addParam("platform", "Address of the SecretPlatform contract")
-  .addParam("from", "Address that sent the transfer")
+  .addParam("user", "Address that sent the transfer")
   .setAction(async function (taskArguments: TaskArguments, { ethers }) {
-    const [signer] = await ethers.getSigners();
+    const signers = await ethers.getSigners();
+    const signer = signers[parseInt(taskArguments.user)]
     const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
 
     console.log("💸 Claiming transfer...");
@@ -262,13 +263,15 @@ task("claim", "Claim a transfer sent to you")
     console.log("To:", signer.address);
 
     // Check if transfer record exists
-    const hasTransfer = await platform.hasTransferRecord(signer.address, taskArguments.from);
-    if (!hasTransfer) {
-      console.log("❌ No transfer record found from", taskArguments.from);
-      return;
-    }
+    const transferRecord = await platform.getTransferRecord(signer.address);
+    console.log("transferRecord:", transferRecord);
 
-    const claimTx = await platform.encryptClaim(taskArguments.from);
+    // if (!hasTransfer) {
+    //   console.log("❌ No transfer record found from", taskArguments.from);
+    //   return;
+    // }
+
+    const claimTx = await platform.connect(signer).encryptClaim();
     await claimTx.wait();
 
     console.log("✅ Transfer claimed successfully");
@@ -279,7 +282,9 @@ task("claim", "Claim a transfer sent to you")
 task("withdraw", "Withdraw cUSDT from SecretPlatform")
   .addParam("platform", "Address of the SecretPlatform contract")
   .addParam("amount", "Amount to withdraw")
-  .setAction(async function (taskArguments: TaskArguments, { ethers }) {
+  .setAction(async function (taskArguments: TaskArguments, hre) {
+    const { ethers, deployments, fhevm } = hre;
+    await fhevm.initializeCLIApi();
     const [signer] = await ethers.getSigners();
     const platform = await ethers.getContractAt("SecretPlatform", taskArguments.platform);
     const amount = BigInt(taskArguments.amount);
@@ -288,7 +293,7 @@ task("withdraw", "Withdraw cUSDT from SecretPlatform")
     console.log("Amount:", taskArguments.amount);
 
     // Create encrypted input using hre.fhevm
-    const { fhevm } = hre;
+
     const input = fhevm.createEncryptedInput(taskArguments.platform, signer.address);
     input.add64(amount);
     const encryptedInput = await input.encrypt();
@@ -369,7 +374,9 @@ task("diagnose", "Diagnose contract state for debugging")
 // Task: Complete workflow demo
 task("demo", "Run a complete SecretPlatform demo")
   .addOptionalParam("users", "Number of users for demo", "2")
-  .setAction(async function (taskArguments: TaskArguments, { ethers, run }) {
+  .setAction(async function (taskArguments: TaskArguments, hre) {
+    const { ethers, deployments, fhevm, run } = hre;
+    await fhevm.initializeCLIApi();
     const users = parseInt(taskArguments.users);
     console.log("🎭 Starting SecretPlatform Demo with", users, "users");
 
@@ -408,7 +415,7 @@ task("demo", "Run a complete SecretPlatform demo")
 
     // User 1 deposits 100
     console.log("💰 User 1 deposits 100 cUSDT");
-    const { fhevm } = ethers;
+
     let input = fhevm.createEncryptedInput(contracts.platform, userSigners[0].address);
     input.add64(100n);
     let encryptedInput = await input.encrypt();
@@ -435,7 +442,7 @@ task("demo", "Run a complete SecretPlatform demo")
 
       // User 2 claims the transfer
       console.log("💸 User 2 claims the transfer from User 1");
-      await platform.connect(userSigners[1]).encryptClaim(userSigners[0].address);
+      await platform.connect(userSigners[1]).encryptClaim();
     }
 
     console.log("\n🎉 Demo completed successfully!");
