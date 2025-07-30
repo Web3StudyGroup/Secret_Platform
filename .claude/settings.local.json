@@ -5,7 +5,8 @@
       "Bash(npx hardhat run:*)",
       "Bash(ls:*)",
       "Bash(npm install)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx hardhat deploy:*)"
     ],
     "deny": []
   }

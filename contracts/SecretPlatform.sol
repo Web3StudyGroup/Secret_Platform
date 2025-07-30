@@ -103,7 +103,7 @@ contract SecretPlatform is SepoliaConfig {
         FHE.allow(userBalances[msg.sender], msg.sender);
 
         // Transfer cUSDT back to user using confidentialTransfer
-        euint64 transferred = cUSDTToken.confidentialTransfer(msg.sender, amount);
+        cUSDTToken.confidentialTransfer(msg.sender, amount);
         // The transferred amount is returned for verification
 
         emit Withdrawal(msg.sender);
@@ -144,7 +144,7 @@ contract SecretPlatform is SepoliaConfig {
         externalEuint64 encryptedAmount,
         bytes calldata inputProof
     ) external {
-        eaddress recipient = FHE.fromExternal(encryptedRecipient, inputProof);
+        // eaddress recipient = FHE.fromExternal(encryptedRecipient, inputProof);
         euint64 amount = FHE.fromExternal(encryptedAmount, inputProof);
 
         // Check user has access to their balance

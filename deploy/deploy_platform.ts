@@ -27,12 +27,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`Deployer: ${deployer}`);
   console.log(`SecretPlatform: ${secretPlatform.address}`);
   console.log(`cUSDT: ${cUSDT.address}`);
-  
-  if (hre.network.name === "localhost" || hre.network.name === "hardhat") {
-    const mockUSDT = await get("MockERC20");
-    console.log(`Mock USDT: ${mockUSDT.address}`);
-  }
-  
+
+  // if (hre.network.name === "localhost" || hre.network.name === "hardhat") {
+  const mockUSDT = await get("MockERC20");
+  console.log(`Mock USDT: ${mockUSDT.address}`);
+  // }
+
   console.log("========================\n");
 };
 
