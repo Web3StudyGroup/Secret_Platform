@@ -5,5 +5,8 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "[solidity]": {
     "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   }
 }
