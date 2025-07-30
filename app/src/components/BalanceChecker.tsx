@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
-import { useFHEVM } from '@/contexts/FHEVMContext';
 import { ContractService } from '@/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { formatAmount } from '@/lib/utils';
 import { Eye, Loader2, RefreshCw } from 'lucide-react';
+import { useZamaSDK } from '@/contexts/ZamaSDKContext';
 
 export const BalanceChecker: React.FC = () => {
   const { signer, isConnected, account } = useWallet();
-  const { instance, isInitialized } = useFHEVM();
+  const { instance, isInitialized, isInitializing, error } = useZamaSDK();
   const { toast } = useToast();
   const [encryptedBalances, setEncryptedBalances] = useState<{
     cUSDT: string;
@@ -144,8 +144,28 @@ export const BalanceChecker: React.FC = () => {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Balance Checker</CardTitle>
-          <CardDescription>Initializing FHEVM...</CardDescription>
+          <CardDescription>
+            {isInitializing ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Initializing FHEVM...
+              </div>
+            ) : error ? (
+              <div className="text-red-600">
+                FHEVM 初始化失败: {error}
+              </div>
+            ) : (
+              'Waiting for FHEVM initialization...'
+            )}
+          </CardDescription>
         </CardHeader>
+        {error && (
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              请检查网络连接和浏览器控制台以获取更多信息
+            </p>
+          </CardContent>
+        )}
       </Card>
     );
   }

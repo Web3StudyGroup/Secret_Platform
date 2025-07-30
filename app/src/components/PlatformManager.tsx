@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
-import { useFHEVM } from '@/contexts/FHEVMContext';
+
 import { ContractService } from '@/contracts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,10 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { parseAmount } from '@/lib/utils';
 import { Shield, Download, Upload, Loader2 } from 'lucide-react';
+import { useZamaSDK } from '@/contexts/ZamaSDKContext';
 
 export const PlatformManager: React.FC = () => {
   const { signer, isConnected, account } = useWallet();
-  const { instance, isInitialized } = useFHEVM();
+  const { instance, isInitialized,initializeSDK } = useZamaSDK();
   const { toast } = useToast();
   const [depositAmount, setDepositAmount] = useState('');
   const [isDepositLoading, setIsDepositLoading] = useState(false);
@@ -34,22 +35,51 @@ export const PlatformManager: React.FC = () => {
   };
 
   useEffect(() => {
+    // console.log('=== PlatformManager useEffect ===');
+    // console.log('isConnected:', isConnected);
+    // console.log('contractService:', contractService);
+    // console.log('account:', account);
+    // console.log('signer:', signer);
+    // console.log('isInitialized:', isInitialized);
+    // console.log('instance:', instance);
+    
     if (isConnected && contractService) {
+      console.log('Loading platform balance and initializing SDK...');
       loadPlatformBalance();
+      initializeSDK().then((result) => {
+        // console.log('SDK initialization result:', result);
+      }).catch((error) => {
+        // console.error('SDK initialization error:', error);
+      });
     }
   }, [isConnected, contractService, account]);
 
   const handleApprovePlatform = async () => {
-    if (!contractService) return;
+    console.log('=== handleApprovePlatform START ===');
+    console.log('contractService:', contractService);
+    console.log('signer:', signer);
+    console.log('account:', account);
+    console.log('isConnected:', isConnected);
+    
+    if (!contractService) {
+      console.error('No contractService available');
+      return;
+    }
 
     setIsApproveLoading(true);
     try {
-      await contractService.approvePlatformOperator(3600); // 1 hour
+      console.log('Calling approvePlatformOperator with duration 3600...');
+      const result = await contractService.approvePlatformOperator(3600); // 1 hour
+      console.log('approvePlatformOperator result:', result);
+      
       toast({
         title: "Success",
         description: "Platform approved as operator for 1 hour",
       });
     } catch (error: any) {
+      console.error('Error in handleApprovePlatform:', error);
+      console.error('Error stack:', error.stack);
+      
       toast({
         title: "Error",
         description: error.message || "Failed to approve platform",
@@ -57,30 +87,63 @@ export const PlatformManager: React.FC = () => {
       });
     } finally {
       setIsApproveLoading(false);
+      console.log('=== handleApprovePlatform END ===');
     }
   };
 
   const handleDeposit = async () => {
-    if (!contractService || !instance || !depositAmount || !account) return;
+    console.log('=== handleDeposit START ===');
+    console.log('contractService:', contractService);
+    console.log('instance:', instance);
+    console.log('depositAmount:', depositAmount);
+    console.log('account:', account);
+    console.log('isInitialized:', isInitialized);
+    
+    if (!contractService) {
+      console.error('No contractService available');
+      return;
+    }
+    if (!instance) {
+      console.error('No instance available');
+      return;
+    }
+    if (!depositAmount) {
+      console.error('No depositAmount provided');
+      return;
+    }
+    if (!account) {
+      console.error('No account available');
+      return;
+    }
 
     setIsDepositLoading(true);
     try {
       // Convert amount to proper format (6 decimals for USDT)
+      console.log('Converting amount:', depositAmount);
       const amount = parseAmount(depositAmount, 6);
+      console.log('Parsed amount:', amount);
       
       // Create encrypted input
+      console.log('Creating encrypted input...');
+      const platformContract = contractService.getSecretPlatformContract();
+      console.log('Platform contract target:', platformContract.target);
+      
       const input = instance.createEncryptedInput(
-        contractService.getSecretPlatformContract().target,
+        platformContract.target,
         account
       );
       input.add64(amount);
+      console.log('Encrypting input...');
       const encryptedInput = await input.encrypt();
+      console.log('Encrypted input:', encryptedInput);
 
       // Make deposit
-      await contractService.depositToPlatform(
+      console.log('Making deposit to platform...');
+      const result = await contractService.depositToPlatform(
         encryptedInput.handles[0],
         encryptedInput.inputProof
       );
+      console.log('Deposit result:', result);
 
       toast({
         title: "Success",
@@ -89,6 +152,9 @@ export const PlatformManager: React.FC = () => {
       setDepositAmount('');
       loadPlatformBalance();
     } catch (error: any) {
+      console.error('Error in handleDeposit:', error);
+      console.error('Error stack:', error.stack);
+      
       toast({
         title: "Error", 
         description: error.message || "Failed to deposit",
@@ -96,6 +162,7 @@ export const PlatformManager: React.FC = () => {
       });
     } finally {
       setIsDepositLoading(false);
+      console.log('=== handleDeposit END ===');
     }
   };
 
@@ -170,7 +237,10 @@ export const PlatformManager: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Button 
-            onClick={handleApprovePlatform}
+            onClick={() => {
+              console.log('Approve Platform button clicked!');
+              handleApprovePlatform();
+            }}
             disabled={isApproveLoading}
             className="w-full"
           >
@@ -204,7 +274,12 @@ export const PlatformManager: React.FC = () => {
             />
           </div>
           <Button 
-            onClick={handleDeposit}
+            onClick={() => {
+              console.log('Deposit to Platform button clicked!');
+              console.log('depositAmount:', depositAmount);
+              console.log('Button disabled:', !depositAmount || isDepositLoading);
+              handleDeposit();
+            }}
             disabled={!depositAmount || isDepositLoading}
             className="w-full"
           >

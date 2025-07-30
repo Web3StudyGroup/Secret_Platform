@@ -53,17 +53,49 @@ export class ContractService {
   }
 
   async approvePlatformOperator(duration: number = 3600) {
-    const platform = this.getSecretPlatformContract();
-    const until = Math.floor(Date.now() / 1000) + duration;
+    console.log('=== ContractService.approvePlatformOperator START ===');
+    console.log('duration:', duration);
     
+    const platform = this.getSecretPlatformContract();
+    console.log('Platform contract:', platform);
+    console.log('Platform contract address:', platform.target);
+    
+    const until = Math.floor(Date.now() / 1000) + duration;
+    console.log('until timestamp:', until);
+    
+    console.log('Calling approveTokenOperator...');
     const tx = await platform.approveTokenOperator(until);
-    return tx.wait();
+    console.log('Transaction sent:', tx);
+    console.log('Transaction hash:', tx.hash);
+    
+    console.log('Waiting for transaction confirmation...');
+    const receipt = await tx.wait();
+    console.log('Transaction receipt:', receipt);
+    console.log('=== ContractService.approvePlatformOperator END ===');
+    
+    return receipt;
   }
 
   async depositToPlatform(encryptedAmount: string, inputProof: string) {
+    console.log('=== ContractService.depositToPlatform START ===');
+    console.log('encryptedAmount:', encryptedAmount);
+    console.log('inputProof length:', inputProof?.length || 'undefined');
+    
     const platform = this.getSecretPlatformContract();
+    console.log('Platform contract:', platform);
+    console.log('Platform contract address:', platform.target);
+    
+    console.log('Calling deposit function...');
     const tx = await platform.deposit(encryptedAmount, inputProof);
-    return tx.wait();
+    console.log('Transaction sent:', tx);
+    console.log('Transaction hash:', tx.hash);
+    
+    console.log('Waiting for transaction confirmation...');
+    const receipt = await tx.wait();
+    console.log('Transaction receipt:', receipt);
+    console.log('=== ContractService.depositToPlatform END ===');
+    
+    return receipt;
   }
 
   async secretTransfer(to: string, encryptedAmount: string, inputProof: string) {

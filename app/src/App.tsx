@@ -1,18 +1,18 @@
 import React from 'react';
 import { WalletProvider } from '@/contexts/WalletContext';
-import { FHEVMProvider } from '@/contexts/FHEVMContext';
+import { ZamaSDKProvider } from './contexts/ZamaSDKContext'
 import { Dashboard } from '@/components/Dashboard';
 import { Toaster } from '@/components/ui/toaster';
 
 function App() {
   return (
     <WalletProvider>
-      <FHEVMProvider>
+      <ZamaSDKProvider>
         <div className="App">
           <Dashboard />
           <Toaster />
         </div>
-      </FHEVMProvider>
+      </ZamaSDKProvider>
     </WalletProvider>
   );
 }

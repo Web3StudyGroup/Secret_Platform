@@ -23,6 +23,11 @@ export const ZamaSDKProvider: React.FC<ZamaSDKProviderProps> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
 
   const initializeSDK = useCallback(async () => {
+    // console.log('=== ZamaSDK initializeSDK START ===');
+    // console.log('isInitialized:', isInitialized);
+    // console.log('instance:', instance);
+    // console.log('isInitializing:', isInitializing);
+    
     // Return existing instance if already initialized
     if (isInitialized && instance) {
       console.log('SDK already initialized, returning existing instance');
@@ -39,32 +44,45 @@ export const ZamaSDKProvider: React.FC<ZamaSDKProviderProps> = ({ children }) =>
       return instance;
     }
 
-    console.log('Initializing SDK...');
+    console.log('Starting SDK initialization...');
     
     try {
       setIsInitializing(true);
       setError(null);
       
+      // Check if window.ethereum is available
+      if (!window.ethereum) {
+        throw new Error('MetaMask not detected');
+      }
+      console.log('MetaMask detected');
+      
       // Initialize the SDK
+      console.log('Calling initSDK()...');
       await initSDK();
+      console.log('initSDK() completed');
       
       // Create instance with Sepolia config
       const config = { 
         ...SepoliaConfig, 
         network: window.ethereum 
       };
+      console.log('Creating instance with config:', config);
       const fhevmInstance = await createInstance(config);
+      console.log('FHEVM instance created:', fhevmInstance);
       
       setInstance(fhevmInstance);
       setIsInitialized(true);
       setIsInitializing(false);
       
       console.log('SDK initialized successfully');
+      console.log('=== ZamaSDK initializeSDK END ===');
       return fhevmInstance;
     } catch (error) {
       console.error('Failed to initialize SDK:', error);
-      setError('SDK initialization failed');
+      console.error('Error details:', error);
+      setError(`SDK initialization failed: ${error.message}`);
       setIsInitializing(false);
+      console.log('=== ZamaSDK initializeSDK ERROR END ===');
       throw error;
     }
   }, [isInitialized, instance, isInitializing]);

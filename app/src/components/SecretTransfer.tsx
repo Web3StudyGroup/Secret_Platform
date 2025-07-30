@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
-import { useFHEVM } from '@/contexts/FHEVMContext';
 import { ContractService } from '@/contracts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +9,11 @@ import { useToast } from '@/hooks/use-toast';
 import { parseAmount } from '@/lib/utils';
 import { Send, Loader2, Eye, EyeOff } from 'lucide-react';
 import { ethers } from 'ethers';
+import { useZamaSDK } from '@/contexts/ZamaSDKContext';
 
 export const SecretTransfer: React.FC = () => {
   const { signer, isConnected, account } = useWallet();
-  const { instance, isInitialized } = useFHEVM();
+  const { instance, isInitialized } = useZamaSDK();
   const { toast } = useToast();
   const [recipientAddress, setRecipientAddress] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
