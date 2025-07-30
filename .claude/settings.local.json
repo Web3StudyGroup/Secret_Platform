@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(npx hardhat run:*)"
+      "Bash(npx hardhat run:*)",
+      "Bash(ls:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }
